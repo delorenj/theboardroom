@@ -9,7 +9,8 @@
  */
 
 import * as pc from 'playcanvas';
-import { Participant, ParticipantConfig } from '../entities/Participant';
+import { Participant } from '../entities/Participant';
+import type { ParticipantConfig } from '../entities/Participant';
 
 export interface MeetingState {
   meetingId: string;
@@ -135,7 +136,7 @@ export class BoardroomScene {
     const material = new pc.StandardMaterial();
     material.diffuse = color;
     material.specular = new pc.Color(0.1, 0.1, 0.1);
-    material.shininess = 30;
+    material.gloss = 0.3; // replaces shininess in PlayCanvas 2.x
     material.update();
     return material;
   }

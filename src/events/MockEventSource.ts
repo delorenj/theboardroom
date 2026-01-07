@@ -5,7 +5,8 @@
  * In production, this would be replaced with a WebSocket connection to Bloodbank.
  */
 
-import { BoardroomScene, MeetingState } from '../scenes/BoardroomScene';
+import { BoardroomScene } from '../scenes/BoardroomScene';
+import type { MeetingState } from '../scenes/BoardroomScene';
 
 interface TheBoardEvent {
   routing_key: string;
@@ -85,6 +86,7 @@ export class MockEventSource {
     // Simulate speaking turns
     this.demoInterval = setInterval(() => {
       const participant = this.DEMO_PARTICIPANTS[this.participantIndex];
+      if (!participant) return;
 
       // Start turn
       this.simulateEvent('theboard.participant.turn_started', {

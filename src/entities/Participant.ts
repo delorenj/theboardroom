@@ -43,7 +43,7 @@ export class Participant {
   constructor(app: pc.Application, config: ParticipantConfig) {
     this.app = app;
     this.config = config;
-    this.color = config.color || PARTICIPANT_COLORS[colorIndex++ % PARTICIPANT_COLORS.length];
+    this.color = config.color ?? PARTICIPANT_COLORS[colorIndex++ % PARTICIPANT_COLORS.length]!;
 
     this.entity = new pc.Entity(`participant-${config.name}`);
     this.headEntity = this.createHead();
@@ -73,9 +73,11 @@ export class Participant {
 
   private createBody(): pc.Entity {
     const body = new pc.Entity('body');
+    const bodyColor = this.color.clone();
+    bodyColor.lerp(bodyColor, new pc.Color(0.2, 0.2, 0.2), 0.3);
     body.addComponent('render', {
       type: 'capsule',
-      material: this.createMaterial(this.color.clone().lerp(new pc.Color(0.2, 0.2, 0.2), 0.3)),
+      material: this.createMaterial(bodyColor),
     });
     body.setLocalScale(0.6, 1, 0.4);
     body.setLocalPosition(0, 0.8, 0);
@@ -105,7 +107,7 @@ export class Participant {
     const material = new pc.StandardMaterial();
     material.diffuse = color;
     material.specular = new pc.Color(0.2, 0.2, 0.2);
-    material.shininess = 50;
+    material.gloss = 0.5; // replaces shininess in PlayCanvas 2.x
     material.update();
     return material;
   }
@@ -128,13 +130,13 @@ export class Participant {
 
     if (speaking && turnType) {
       // Change indicator color based on turn type
-      const ring = this.speakingIndicator.findByName('ring');
-      if (ring && ring.render) {
+      const ring = this.speakingIndicator.findByName('ring') as pc.Entity | null;
+      if (ring?.render) {
         const color = turnType === 'response'
           ? new pc.Color(0.3, 0.6, 0.9)  // Blue for responses
           : new pc.Color(0.3, 0.9, 0.4); // Green for turns
         const material = this.createEmissiveMaterial(color);
-        ring.render.meshInstances[0].material = material;
+        ring.render.meshInstances[0]!.material = material;
       }
     }
   }
@@ -152,7 +154,7 @@ export class Participant {
 
       // Pulse the indicator
       const scale = 1.2 + Math.sin(this.speakingTime * 3) * 0.1;
-      const ring = this.speakingIndicator.findByName('ring');
+      const ring = this.speakingIndicator.findByName('ring') as pc.Entity | null;
       if (ring) {
         ring.setLocalScale(scale, 0.1, scale);
       }
