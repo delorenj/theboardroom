@@ -8,6 +8,10 @@
 import * as pc from 'playcanvas';
 import { BoardroomScene } from './scenes/BoardroomScene';
 import { MockEventSource } from './events/MockEventSource';
+import { HUDController } from './ui/HUDController';
+
+// Initialize HUD controller first (it manages DOM elements)
+const hud = new HUDController();
 
 // Initialize PlayCanvas
 const canvas = document.createElement('canvas');
@@ -46,25 +50,15 @@ pc.createGraphicsDevice(canvas, gfxOptions).then((device: pc.GraphicsDevice) => 
 
   // For development: use mock event source
   // In production: connect to Bloodbank via WebSocket
-  const eventSource = new MockEventSource(scene);
+  const eventSource = new MockEventSource(scene, hud);
   eventSource.startDemo();
 
-  // Update HUD connection status
-  updateConnectionStatus('connecting');
-  setTimeout(() => updateConnectionStatus('connected'), 1000);
+  console.log('theboardroom initialized - cyberpunk edition');
 
-  console.log('theboardroom initialized');
+  // Export for debugging
+  (window as any).theboardroom = {
+    scene,
+    hud,
+    eventSource,
+  };
 });
-
-function updateConnectionStatus(status: 'connected' | 'disconnected' | 'connecting') {
-  const el = document.getElementById('connection-status');
-  if (el) {
-    el.className = status;
-    el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-  }
-}
-
-// Export for debugging
-(window as any).theboardroom = {
-  updateConnectionStatus,
-};

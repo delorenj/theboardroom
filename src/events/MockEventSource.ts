@@ -6,7 +6,7 @@
  */
 
 import { BoardroomScene } from '../scenes/BoardroomScene';
-import type { MeetingState } from '../scenes/BoardroomScene';
+import { HUDController } from '../ui/HUDController';
 
 interface TheBoardEvent {
   routing_key: string;
@@ -16,6 +16,7 @@ interface TheBoardEvent {
 
 export class MockEventSource {
   private scene: BoardroomScene;
+  private hud: HUDController;
   private demoInterval: ReturnType<typeof setInterval> | null = null;
   private currentRound = 0;
   private participantIndex = 0;
@@ -30,8 +31,9 @@ export class MockEventSource {
 
   private readonly DEMO_TOPIC = 'How should we implement the new authentication system?';
 
-  constructor(scene: BoardroomScene) {
+  constructor(scene: BoardroomScene, hud: HUDController) {
     this.scene = scene;
+    this.hud = hud;
   }
 
   /**
@@ -39,6 +41,12 @@ export class MockEventSource {
    */
   startDemo(): void {
     console.log('Starting demo simulation...');
+    this.hud.setConnectionStatus('connecting');
+
+    // Simulate connection
+    setTimeout(() => {
+      this.hud.setConnectionStatus('connected');
+    }, 800);
 
     // Simulate meeting creation
     setTimeout(() => this.simulateEvent('theboard.meeting.created', {
@@ -47,7 +55,7 @@ export class MockEventSource {
       strategy: 'sequential',
       max_rounds: 5,
       agent_count: this.DEMO_PARTICIPANTS.length,
-    }), 500);
+    }), 1500);
 
     // Add participants one by one
     this.DEMO_PARTICIPANTS.forEach((p, i) => {
@@ -55,7 +63,7 @@ export class MockEventSource {
         meeting_id: 'demo-meeting-001',
         agent_name: p.name,
         agent_role: p.role,
-      }), 1000 + i * 300);
+      }), 2000 + i * 400);
     });
 
     // Start the meeting
@@ -63,10 +71,10 @@ export class MockEventSource {
       meeting_id: 'demo-meeting-001',
       topic: this.DEMO_TOPIC,
       participant_count: this.DEMO_PARTICIPANTS.length,
-    }), 2500);
+    }), 4500);
 
     // Start the speaking rounds
-    setTimeout(() => this.startRounds(), 3500);
+    setTimeout(() => this.startRounds(), 5500);
   }
 
   /**
@@ -88,12 +96,15 @@ export class MockEventSource {
       const participant = this.DEMO_PARTICIPANTS[this.participantIndex];
       if (!participant) return;
 
+      // Determine turn type (first person each round is a "turn", others are "responses")
+      const turnType = this.participantIndex === 0 ? 'turn' : 'response';
+
       // Start turn
       this.simulateEvent('theboard.participant.turn_started', {
         meeting_id: 'demo-meeting-001',
         agent_name: participant.name,
         round_num: this.currentRound,
-        turn_type: 'turn',
+        turn_type: turnType,
       });
 
       // End turn after a delay
@@ -120,6 +131,9 @@ export class MockEventSource {
           this.currentRound++;
           this.participantIndex = 0;
 
+          // Bump novelty at start of new round
+          this.hud.setNovelty(60 + Math.random() * 30);
+
           // Check if meeting should converge
           if (this.currentRound > 3 && Math.random() > 0.5) {
             this.stopDemo();
@@ -135,18 +149,12 @@ export class MockEventSource {
                 total_rounds: this.currentRound - 1,
                 total_comments: Math.floor(Math.random() * 20) + 10,
               });
-            }, 1000);
+            }, 2000);
 
             // Restart demo after a pause
             setTimeout(() => {
-              this.scene.clearParticipants();
-              this.scene.updateMeetingState({
-                status: 'waiting',
-                topic: '',
-                currentRound: 0,
-              });
-              this.startDemo();
-            }, 5000);
+              this.resetAndRestart();
+            }, 6000);
           }
 
           if (this.currentRound > 5) {
@@ -155,11 +163,29 @@ export class MockEventSource {
               meeting_id: 'demo-meeting-001',
               total_rounds: this.currentRound - 1,
             });
+
+            // Restart demo after a pause
+            setTimeout(() => {
+              this.resetAndRestart();
+            }, 5000);
           }
         }
-      }, 2000 + Math.random() * 1000);
+      }, 2500 + Math.random() * 1000);
 
-    }, 3500);
+    }, 4000);
+  }
+
+  private resetAndRestart(): void {
+    this.scene.clearParticipants();
+    this.hud.reset();
+    this.scene.updateMeetingState({
+      status: 'waiting',
+      topic: '',
+      currentRound: 0,
+    });
+    this.currentRound = 0;
+    this.participantIndex = 0;
+    this.startDemo();
   }
 
   /**
@@ -188,6 +214,10 @@ export class MockEventSource {
           status: 'waiting',
           maxRounds: event.payload.max_rounds as number,
         });
+        this.hud.setMeetingInfo(
+          event.payload.topic as string,
+          event.payload.max_rounds as number
+        );
         break;
 
       case 'theboard.participant.added':
@@ -195,6 +225,10 @@ export class MockEventSource {
           name: event.payload.agent_name as string,
           role: event.payload.agent_role as string,
         });
+        this.hud.addParticipant(
+          event.payload.agent_name as string,
+          event.payload.agent_role as string
+        );
         break;
 
       case 'theboard.meeting.started':
@@ -202,6 +236,7 @@ export class MockEventSource {
           status: 'active',
           currentRound: 1,
         });
+        this.hud.setRound(1);
         break;
 
       case 'theboard.participant.turn_started':
@@ -212,10 +247,16 @@ export class MockEventSource {
         this.scene.updateMeetingState({
           currentRound: event.payload.round_num as number,
         });
+        this.hud.setSpeaker(
+          event.payload.agent_name as string,
+          (event.payload.turn_type as 'response' | 'turn') || 'turn'
+        );
+        this.hud.setRound(event.payload.round_num as number);
         break;
 
       case 'theboard.participant.turn_completed':
         this.scene.setSpeaking(null, null);
+        this.hud.setSpeaker(null, null);
         break;
 
       case 'theboard.meeting.round_completed':
@@ -229,6 +270,8 @@ export class MockEventSource {
           status: 'converged',
         });
         this.scene.setSpeaking(null, null);
+        this.hud.setSpeaker(null, null);
+        this.hud.setMeetingStatus('converged');
         break;
 
       case 'theboard.meeting.completed':
@@ -236,6 +279,8 @@ export class MockEventSource {
           status: 'completed',
         });
         this.scene.setSpeaking(null, null);
+        this.hud.setSpeaker(null, null);
+        this.hud.setMeetingStatus('completed');
         break;
 
       case 'theboard.meeting.failed':
@@ -243,6 +288,8 @@ export class MockEventSource {
           status: 'failed',
         });
         this.scene.setSpeaking(null, null);
+        this.hud.setSpeaker(null, null);
+        this.hud.setMeetingStatus('failed');
         break;
     }
   }
