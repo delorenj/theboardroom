@@ -17,12 +17,22 @@ export interface AgentStats {
 export interface ParticipantInfo {
   name: string;
   role: string;
-  avatar: string;
+  avatar: string;      // emoji fallback
+  avatarImage: string | null;  // image path if available
   stats: AgentStats;
 }
 
-// Predefined avatars for demo
-const AVATARS = ['👩‍💻', '👨‍💼', '🧑‍🎨', '👩‍🔬', '🧑‍🔧', '👨‍🏫', '👩‍⚕️', '🧑‍🚀'];
+// Predefined avatar images (AI-generated portraits)
+const AVATAR_IMAGES: Record<string, string> = {
+  'Alice': '/portraits/alice.png',
+  'Bob': '/portraits/bob.png',
+  'Charlie': '/portraits/charlie.png',
+  'Diana': '/portraits/diana.png',
+  'Eve': '/portraits/eve.png',
+};
+
+// Fallback emoji avatars
+const EMOJI_AVATARS = ['👩‍💻', '👨‍💼', '🧑‍🎨', '👩‍🔬', '🧑‍🔧', '👨‍🏫', '👩‍⚕️', '🧑‍🚀'];
 
 // Predefined stats per role (for demo purposes)
 const ROLE_STATS: Record<string, AgentStats> = {
@@ -146,10 +156,11 @@ export class HUDController {
    * Add a participant
    */
   addParticipant(name: string, role: string): void {
-    const avatar = AVATARS[this.avatarIndex++ % AVATARS.length]!;
+    const avatar = EMOJI_AVATARS[this.avatarIndex++ % EMOJI_AVATARS.length]!;
+    const avatarImage = AVATAR_IMAGES[name] ?? null;
     const stats = ROLE_STATS[role] ?? ROLE_STATS['default']!;
 
-    this.participants.set(name, { name, role, avatar, stats });
+    this.participants.set(name, { name, role, avatar, avatarImage, stats });
     this.updateParticipantPips();
   }
 
@@ -183,8 +194,13 @@ export class HUDController {
       const pip = document.createElement('div');
       pip.className = 'participant-pip';
       pip.dataset['name'] = name;
+
+      const avatarContent = info.avatarImage
+        ? `<img src="${info.avatarImage}" alt="${name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`
+        : info.avatar;
+
       pip.innerHTML = `
-        <div class="avatar">${info.avatar}</div>
+        <div class="avatar">${avatarContent}</div>
         <div class="name">${name}</div>
       `;
       container.appendChild(pip);
@@ -239,7 +255,14 @@ export class HUDController {
     const roleEl = document.getElementById('speaker-role');
     const badgeEl = document.getElementById('turn-badge');
 
-    if (portraitEl) portraitEl.textContent = info.avatar;
+    if (portraitEl) {
+      if (info.avatarImage) {
+        portraitEl.innerHTML = `<img src="${info.avatarImage}" alt="${info.name}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      } else {
+        portraitEl.innerHTML = '';
+        portraitEl.textContent = info.avatar;
+      }
+    }
     if (nameEl) nameEl.textContent = info.name;
     if (roleEl) roleEl.textContent = info.role;
 
