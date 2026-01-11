@@ -17,6 +17,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.2.1",
     "pixi.js": "^8.15.0",
     "playcanvas": "^2.14.4",
     "vite": "^7.3.1"

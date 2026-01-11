@@ -4,15 +4,23 @@
  * A cyberpunk visualization of theboard multi-agent meetings.
  * Supports both 2D (PixiJS) and 3D (PlayCanvas) rendering modes.
  * Connects to Bloodbank event bus to receive real-time meeting events.
+ *
+ * Configuration:
+ * - VITE_BLOODBANK_WS_URL: WebSocket URL for Bloodbank (leave empty for demo mode)
+ * - VITE_RENDER_MODE: "2d" (PixiJS) or "3d" (PlayCanvas)
+ * - URL param ?mode=3d: Override to 3D mode
+ * - URL param ?source=mock: Force mock event source
  */
 
 import { BoardroomScene2D } from './scenes/BoardroomScene2D';
-import { MockEventSource2D } from './events/MockEventSource2D';
 import { HUDController } from './ui/HUDController';
+import { createEventSource, isDemoMode } from './events/EventSourceFactory';
+import type { EventSourceType } from './events/EventSourceFactory';
 
-// Check URL params for mode selection (default to 2D)
+// Check URL params for mode selection
 const params = new URLSearchParams(window.location.search);
-const mode = params.get('mode') || '2d';
+const mode = params.get('mode') || import.meta.env.VITE_RENDER_MODE || '2d';
+const sourceType = (params.get('source') as EventSourceType) || 'auto';
 
 // Initialize HUD controller first (it manages DOM elements)
 const hud = new HUDController();
@@ -25,12 +33,24 @@ if (mode === '2d') {
   document.getElementById('app')!.appendChild(canvas);
 
   const scene = new BoardroomScene2D();
-  scene.initialize(canvas).then(() => {
-    // Create event source and start demo
-    const eventSource = new MockEventSource2D(scene, hud);
-    eventSource.startDemo();
+  scene.initialize(canvas).then(async () => {
+    // Create event source (auto-selects Bloodbank or mock based on config)
+    const eventSource = await createEventSource(scene, hud, { type: sourceType });
 
-    console.log('theboardroom initialized - 2D cyberpunk edition');
+    // Start appropriate source
+    if (eventSource.startDemo) {
+      // Mock mode - start demo loop
+      eventSource.startDemo();
+      console.log('theboardroom initialized - 2D cyberpunk edition (demo mode)');
+    } else if (eventSource.connect) {
+      // Live mode - already connected via factory
+      console.log('theboardroom initialized - 2D cyberpunk edition (Bloodbank live)');
+    }
+
+    // Show demo badge if in demo mode
+    if (isDemoMode()) {
+      showDemoBadge();
+    }
 
     // Export for debugging
     (window as any).theboardroom = {
@@ -38,6 +58,7 @@ if (mode === '2d') {
       hud,
       eventSource,
       mode: '2d',
+      isDemo: isDemoMode(),
     };
   });
 } else {
@@ -75,16 +96,42 @@ if (mode === '2d') {
     const scene = new BoardroomScene(app);
     scene.initialize();
 
+    // 3D mode always uses mock for now
     const eventSource = new MockEventSource(scene, hud);
     eventSource.startDemo();
 
-    console.log('theboardroom initialized - 3D mode (legacy)');
+    console.log('theboardroom initialized - 3D mode (legacy, demo only)');
 
     (window as any).theboardroom = {
       scene,
       hud,
       eventSource,
       mode: '3d',
+      isDemo: true,
     };
   });
+}
+
+/**
+ * Show demo mode indicator
+ */
+function showDemoBadge(): void {
+  const badge = document.createElement('div');
+  badge.id = 'demo-badge';
+  badge.innerHTML = 'DEMO MODE';
+  badge.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 4px 12px;
+    background: rgba(168, 85, 247, 0.8);
+    color: white;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    border-radius: 2px;
+    z-index: 9999;
+    pointer-events: none;
+  `;
+  document.body.appendChild(badge);
 }
