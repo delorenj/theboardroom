@@ -610,6 +610,216 @@
       color: var(--text-dim);
       letter-spacing: 2px;
     }
+
+    /* ============================================
+       INSIGHTS PANEL (Phase 3B)
+       ============================================ */
+    #insights-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 900px;
+      max-height: 80%;
+      background: var(--bg-panel);
+      border: 2px solid var(--cyan);
+      border-radius: 8px;
+      padding: 24px;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      overflow-y: auto;
+      box-shadow: 0 0 40px var(--cyan-glow);
+    }
+
+    #insights-panel.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .insights-header {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-align: center;
+      margin-bottom: 24px;
+      text-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    .insights-section {
+      margin-bottom: 24px;
+    }
+
+    .insights-section-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    /* Top Comments */
+    .insight-comment {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .comment-header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .comment-rank {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .comment-novelty {
+      background: var(--purple);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .comment-category {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .comment-text {
+      color: var(--text-primary);
+      line-height: 1.6;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .comment-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .comment-agent {
+      color: var(--cyan);
+    }
+
+    /* Category Distribution */
+    .category-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .category-label {
+      width: 150px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: capitalize;
+    }
+
+    .category-progress {
+      flex: 1;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .category-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan-dark), var(--cyan));
+      transition: width 0.5s ease;
+    }
+
+    .category-count {
+      width: 100px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-primary);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    /* Agent Participation */
+    .participation-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+
+    .participation-rank {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      width: 30px;
+    }
+
+    .participation-agent {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .participation-count {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .insights-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .insights-close-btn:hover {
+      background: var(--cyan);
+      color: var(--bg-dark);
+      border-color: var(--cyan);
+    }
   </style>
 </head>
 <body>
@@ -760,6 +970,33 @@
   <div id="waiting-overlay">
     <div class="waiting-text">Awaiting Meeting</div>
     <div class="waiting-subtext">Connecting to Bloodbank...</div>
+  </div>
+
+  <!-- INSIGHTS PANEL (Phase 3B) -->
+  <div id="insights-panel">
+    <button class="insights-close-btn" onclick="document.getElementById('insights-panel').classList.remove('active')">✕</button>
+    <div class="insights-header">Meeting Insights</div>
+
+    <div class="insights-section">
+      <div class="insights-section-title">Top Comments</div>
+      <div id="insights-comments">
+        <!-- Populated dynamically by HUDController -->
+      </div>
+    </div>
+
+    <div class="insights-section">
+      <div class="insights-section-title">Category Distribution</div>
+      <div id="insights-categories">
+        <!-- Populated dynamically by HUDController -->
+      </div>
+    </div>
+
+    <div class="insights-section">
+      <div class="insights-section-title">Agent Participation</div>
+      <div id="insights-participation">
+        <!-- Populated dynamically by HUDController -->
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>

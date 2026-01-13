@@ -388,6 +388,78 @@ export class HUDController {
   }
 
   /**
+   * Show insights panel with Phase 3A data
+   */
+  showInsights(insights: MeetingInsights): void {
+    const panel = document.getElementById('insights-panel');
+    if (!panel) return;
+
+    // Populate top comments
+    const commentsContainer = document.getElementById('insights-comments');
+    if (commentsContainer) {
+      commentsContainer.innerHTML = insights.top_comments.map((comment, idx) =>
+        `<div class="insight-comment">
+          <div class="comment-header">
+            <span class="comment-rank">#${idx + 1}</span>
+            <span class="comment-novelty">${(comment.novelty_score * 100).toFixed(0)}%</span>
+            <span class="comment-category">${comment.category}</span>
+          </div>
+          <div class="comment-text">${comment.text}</div>
+          <div class="comment-meta">
+            <span class="comment-agent">${comment.agent_name}</span>
+            <span class="comment-round">Round ${comment.round_num}</span>
+          </div>
+        </div>`
+      ).join('');
+    }
+
+    // Populate category distribution
+    const categoriesContainer = document.getElementById('insights-categories');
+    if (categoriesContainer) {
+      const total = Object.values(insights.category_distribution).reduce((sum, count) => sum + count, 0);
+      categoriesContainer.innerHTML = Object.entries(insights.category_distribution)
+        .sort(([, a], [, b]) => b - a)
+        .map(([category, count]) => {
+          const percentage = total > 0 ? (count / total * 100).toFixed(1) : '0.0';
+          return `<div class="category-bar">
+            <div class="category-label">${category}</div>
+            <div class="category-progress">
+              <div class="category-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="category-count">${count} (${percentage}%)</div>
+          </div>`;
+        }).join('');
+    }
+
+    // Populate agent participation
+    const participationContainer = document.getElementById('insights-participation');
+    if (participationContainer) {
+      participationContainer.innerHTML = Object.entries(insights.agent_participation)
+        .sort(([, a], [, b]) => b - a)
+        .map(([agent, count], idx) =>
+          `<div class="participation-row">
+            <span class="participation-rank">${idx + 1}.</span>
+            <span class="participation-agent">${agent}</span>
+            <span class="participation-count">${count} responses</span>
+          </div>`
+        ).join('');
+    }
+
+    // Show panel with fade-in animation
+    panel.classList.add('active');
+  }
+
+  /**
+   * Hide insights panel
+   */
+  hideInsights(): void {
+    const panel = document.getElementById('insights-panel');
+    if (panel) {
+      panel.classList.remove('active');
+    }
+  }
+
+  /**
    * Cleanup
    */
   destroy(): void {
@@ -395,4 +467,19 @@ export class HUDController {
       clearInterval(this.timerInterval);
     }
   }
+}
+
+// Type definitions for Phase 3A insights
+export interface TopComment {
+  text: string;
+  category: string;
+  novelty_score: number;
+  agent_name: string;
+  round_num: number;
+}
+
+export interface MeetingInsights {
+  top_comments: TopComment[];
+  category_distribution: Record<string, number>;
+  agent_participation: Record<string, number>;
 }

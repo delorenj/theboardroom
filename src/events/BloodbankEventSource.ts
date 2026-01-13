@@ -14,7 +14,7 @@
 import { Client } from '@stomp/stompjs';
 import type { IMessage, StompSubscription } from '@stomp/stompjs';
 import { BoardroomScene2D } from '../scenes/BoardroomScene2D';
-import { HUDController } from '../ui/HUDController';
+import { HUDController, type MeetingInsights } from '../ui/HUDController';
 
 // Event envelope structure from Bloodbank
 interface EventEnvelope {
@@ -251,6 +251,16 @@ export class BloodbankEventSource {
         this.scene.setSpeaking(null, null);
         this.hud.setSpeaker(null, null);
         this.hud.setMeetingStatus('completed');
+
+        // Phase 3B: Show insights panel with Phase 3A data
+        if (payload.top_comments || payload.category_distribution || payload.agent_participation) {
+          const insights: MeetingInsights = {
+            top_comments: payload.top_comments as MeetingInsights['top_comments'] || [],
+            category_distribution: payload.category_distribution as Record<string, number> || {},
+            agent_participation: payload.agent_participation as Record<string, number> || {},
+          };
+          this.hud.showInsights(insights);
+        }
         break;
 
       case 'theboard.meeting.failed':
