@@ -10,6 +10,7 @@
 
 import { BoardroomScene2D } from '../scenes/BoardroomScene2D';
 import { HUDController } from '../ui/HUDController';
+import { ParticipantManager } from '../managers/ParticipantManager';
 import { BloodbankEventSource } from './BloodbankEventSource';
 import { MockEventSource2D } from './MockEventSource2D';
 
@@ -40,6 +41,7 @@ const DEFAULT_OPTIONS: Required<EventSourceOptions> = {
 export async function createEventSource(
   scene: BoardroomScene2D,
   hud: HUDController,
+  participantManager: ParticipantManager,
   options: EventSourceOptions = {}
 ): Promise<EventSource> {
   const config = { ...DEFAULT_OPTIONS, ...options };
@@ -47,13 +49,13 @@ export async function createEventSource(
   // Force mock mode
   if (config.type === 'mock') {
     console.log('[EventSourceFactory] Using mock event source (forced)');
-    return createMockSource(scene, hud);
+    return createMockSource(scene, hud, participantManager);
   }
 
   // Force Bloodbank mode
   if (config.type === 'bloodbank') {
     console.log('[EventSourceFactory] Using Bloodbank event source (forced)');
-    return createBloodbankSource(scene, hud, config.bloodbankUrl);
+    return createBloodbankSource(scene, hud, participantManager, config.bloodbankUrl);
   }
 
   // Auto mode: try Bloodbank, fall back to mock
@@ -63,6 +65,7 @@ export async function createEventSource(
       const source = await createBloodbankSourceWithTimeout(
         scene,
         hud,
+        participantManager,
         config.bloodbankUrl,
         config.connectionTimeout
       );
@@ -70,20 +73,20 @@ export async function createEventSource(
       return source;
     } catch (error) {
       console.warn('[EventSourceFactory] Bloodbank unavailable, falling back to mock:', error);
-      return createMockSource(scene, hud);
+      return createMockSource(scene, hud, participantManager);
     }
   }
 
   // No Bloodbank URL configured, use mock
   console.log('[EventSourceFactory] No Bloodbank URL configured, using mock');
-  return createMockSource(scene, hud);
+  return createMockSource(scene, hud, participantManager);
 }
 
 /**
  * Create mock event source
  */
-function createMockSource(scene: BoardroomScene2D, hud: HUDController): EventSource {
-  const mock = new MockEventSource2D(scene, hud);
+function createMockSource(scene: BoardroomScene2D, hud: HUDController, participantManager: ParticipantManager): EventSource {
+  const mock = new MockEventSource2D(scene, hud, participantManager);
   return {
     startDemo: () => mock.startDemo(),
     stopDemo: () => mock.stopDemo(),
@@ -96,11 +99,12 @@ function createMockSource(scene: BoardroomScene2D, hud: HUDController): EventSou
 function createBloodbankSource(
   scene: BoardroomScene2D,
   hud: HUDController,
+  participantManager: ParticipantManager,
   wsUrl: string
 ): EventSource {
-  const bloodbank = new BloodbankEventSource(scene, hud, { wsUrl });
+  const bloodbank = new BloodbankEventSource(scene, hud, participantManager, { wsUrl });
   return {
-    connect: () => bloodbank.connect(),
+    connect: async () => await bloodbank.connect(),
     disconnect: () => bloodbank.disconnect(),
   };
 }
@@ -111,10 +115,11 @@ function createBloodbankSource(
 async function createBloodbankSourceWithTimeout(
   scene: BoardroomScene2D,
   hud: HUDController,
+  participantManager: ParticipantManager,
   wsUrl: string,
   timeout: number
 ): Promise<EventSource> {
-  const bloodbank = new BloodbankEventSource(scene, hud, { wsUrl });
+  const bloodbank = new BloodbankEventSource(scene, hud, participantManager, { wsUrl });
 
   // Create a promise that resolves when connected or rejects on timeout
   const connectionPromise = new Promise<void>((resolve, reject) => {
