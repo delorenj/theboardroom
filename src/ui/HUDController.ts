@@ -5,6 +5,8 @@
  * based on meeting events and state changes.
  */
 
+import { AnimationManager, Easing } from '../utils/animations';
+
 export interface AgentStats {
   reasoning: number;
   articulation: number;
@@ -67,13 +69,17 @@ export class HUDController {
   private avatarIndex = 0;
   private meetingStartTime: number = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private animationManager: AnimationManager = new AnimationManager();
+  private animationFrameId: number | null = null;
   private currentRound = 0;
   private maxRounds = 0;
   private consensusLevel = 0;
   private noveltyLevel = 50;
+  private noveltyHistory: number[] = [];
 
   constructor() {
     this.startTimer();
+    this.startAnimationLoop();
   }
 
   /**
@@ -119,9 +125,8 @@ export class HUDController {
     this.currentRound = round;
     this.updateRoundDisplay();
 
-    // Simulate consensus building over rounds
-    this.consensusLevel = Math.min(95, round * 15 + Math.random() * 10);
-    this.updateConsensusBar();
+    // Consensus calculation is now based on novelty trend (see setNovelty)
+    // No longer simulated here
   }
 
   private updateRoundDisplay(): void {
@@ -132,24 +137,61 @@ export class HUDController {
   }
 
   /**
-   * Update consensus meter
+   * Update consensus meter with smooth animation
    */
   private updateConsensusBar(): void {
-    const bar = document.getElementById('consensus-bar');
-    if (bar) {
-      bar.style.width = `${this.consensusLevel}%`;
-    }
+    const currentWidth = this.getCurrentBarWidth('consensus-bar');
+
+    this.animationManager.start(
+      'consensus',
+      currentWidth,
+      this.consensusLevel,
+      600,
+      Easing.easeOutCubic
+    );
   }
 
   /**
-   * Update novelty meter
+   * Update novelty meter with smooth animation
+   * Also calculates consensus based on novelty trend
    */
   setNovelty(level: number): void {
     this.noveltyLevel = Math.max(0, Math.min(100, level));
-    const bar = document.getElementById('novelty-bar');
-    if (bar) {
-      bar.style.width = `${this.noveltyLevel}%`;
+
+    // Track novelty history for trend analysis
+    this.noveltyHistory.push(this.noveltyLevel);
+    if (this.noveltyHistory.length > 10) {
+      this.noveltyHistory.shift(); // Keep last 10 values
     }
+
+    // Calculate consensus as inverse of novelty with trend smoothing
+    // High novelty = low consensus, Low novelty = high consensus
+    const avgNovelty = this.noveltyHistory.reduce((sum, v) => sum + v, 0) / this.noveltyHistory.length;
+    this.consensusLevel = Math.max(0, Math.min(100, 100 - avgNovelty));
+
+    // Animate novelty bar
+    const currentNoveltyWidth = this.getCurrentBarWidth('novelty-bar');
+    this.animationManager.start(
+      'novelty',
+      currentNoveltyWidth,
+      this.noveltyLevel,
+      600,
+      Easing.easeOutCubic
+    );
+
+    // Update consensus bar
+    this.updateConsensusBar();
+  }
+
+  /**
+   * Get current width percentage of a bar element
+   */
+  private getCurrentBarWidth(barId: string): number {
+    const bar = document.getElementById(barId);
+    if (!bar) return 0;
+
+    const currentWidth = bar.style.width;
+    return parseFloat(currentWidth) || 0;
   }
 
   /**
@@ -365,6 +407,35 @@ export class HUDController {
   }
 
   /**
+   * Start animation loop for smooth metric transitions
+   */
+  private startAnimationLoop(): void {
+    const animate = () => {
+      const currentTime = Date.now();
+      const values = this.animationManager.update(currentTime);
+
+      // Apply animated values to DOM elements
+      for (const [key, value] of values) {
+        if (key === 'consensus') {
+          const bar = document.getElementById('consensus-bar');
+          if (bar) {
+            bar.style.width = `${value}%`;
+          }
+        } else if (key === 'novelty') {
+          const bar = document.getElementById('novelty-bar');
+          if (bar) {
+            bar.style.width = `${value}%`;
+          }
+        }
+      }
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    };
+
+    this.animationFrameId = requestAnimationFrame(animate);
+  }
+
+  /**
    * Reset for new meeting
    */
   reset(): void {
@@ -373,6 +444,10 @@ export class HUDController {
     this.maxRounds = 0;
     this.consensusLevel = 0;
     this.noveltyLevel = 50;
+    this.noveltyHistory = [];
+
+    // Cancel any running animations
+    this.animationManager.cancelAll();
 
     this.updateRoundDisplay();
     this.updateConsensusBar();
@@ -466,6 +541,10 @@ export class HUDController {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+    this.animationManager.cancelAll();
   }
 }
 

@@ -15,6 +15,7 @@ import { Client } from '@stomp/stompjs';
 import type { IMessage, StompSubscription } from '@stomp/stompjs';
 import { BoardroomScene2D } from '../scenes/BoardroomScene2D';
 import { HUDController, type MeetingInsights } from '../ui/HUDController';
+import { ParticipantManager } from '../managers/ParticipantManager';
 
 // Event envelope structure from Bloodbank
 interface EventEnvelope {
@@ -49,20 +50,22 @@ const DEFAULT_CONFIG: BloodbankConfig = {
 export class BloodbankEventSource {
   private scene: BoardroomScene2D;
   private hud: HUDController;
+  private participantManager: ParticipantManager;
   private config: BloodbankConfig;
   private client: Client | null = null;
   private subscription: StompSubscription | null = null;
   private reconnectAttempts = 0;
   private isConnected = false;
-  private participants: Map<string, { name: string; role: string }> = new Map();
 
   constructor(
     scene: BoardroomScene2D,
     hud: HUDController,
+    participantManager: ParticipantManager,
     config: Partial<BloodbankConfig> = {}
   ) {
     this.scene = scene;
     this.hud = hud;
+    this.participantManager = participantManager;
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -179,10 +182,9 @@ export class BloodbankEventSource {
           payload.topic as string,
           payload.max_rounds as number
         );
-        // Clear previous participants
-        this.scene.clearParticipants();
+        // Clear previous participants via manager
+        this.participantManager.clearParticipants();
         this.hud.clearParticipants();
-        this.participants.clear();
         break;
 
       case 'theboard.meeting.started':
@@ -191,25 +193,34 @@ export class BloodbankEventSource {
           currentRound: 1,
         });
         this.hud.setRound(1);
-        // Add participants from selected_agents
+        // Add participants from selected_agents via manager
         const agents = payload.selected_agents as string[];
         for (const agentName of agents) {
-          await this.addParticipant(agentName, 'Agent');
+          this.participantManager.addParticipant({
+            name: agentName,
+            role: 'Agent',
+          });
+          this.hud.addParticipant(agentName, 'Agent');
         }
         break;
 
       case 'theboard.meeting.participant.added':
-        await this.addParticipant(
+        this.participantManager.addParticipant({
+          name: payload.agent_name as string,
+          role: (payload.expertise as string) || 'Agent',
+        });
+        this.hud.addParticipant(
           payload.agent_name as string,
           (payload.expertise as string) || 'Agent'
         );
         break;
 
       case 'theboard.meeting.participant.turn.completed':
-        // Handle turn completion with detailed info
-        this.scene.setSpeaking(
+        // Handle turn completion via participant manager
+        this.participantManager.setSpeaking(
           payload.agent_name as string,
-          (payload.turn_type as 'response' | 'turn') || 'turn'
+          (payload.turn_type as 'response' | 'turn') || 'turn',
+          payload.round_num as number
         );
         this.hud.setSpeaker(
           payload.agent_name as string,
@@ -219,7 +230,7 @@ export class BloodbankEventSource {
 
         // Clear speaker after a brief moment (simulating turn completion)
         setTimeout(() => {
-          this.scene.setSpeaking(null, null);
+          this.participantManager.setSpeaking(null, null);
           this.hud.setSpeaker(null, null);
         }, 500);
         break;
@@ -241,14 +252,14 @@ export class BloodbankEventSource {
 
       case 'theboard.meeting.converged':
         this.scene.updateMeetingState({ status: 'converged' });
-        this.scene.setSpeaking(null, null);
+        this.participantManager.setSpeaking(null, null);
         this.hud.setSpeaker(null, null);
         this.hud.setMeetingStatus('converged');
         break;
 
       case 'theboard.meeting.completed':
         this.scene.updateMeetingState({ status: 'completed' });
-        this.scene.setSpeaking(null, null);
+        this.participantManager.setSpeaking(null, null);
         this.hud.setSpeaker(null, null);
         this.hud.setMeetingStatus('completed');
 
@@ -265,7 +276,7 @@ export class BloodbankEventSource {
 
       case 'theboard.meeting.failed':
         this.scene.updateMeetingState({ status: 'failed' });
-        this.scene.setSpeaking(null, null);
+        this.participantManager.setSpeaking(null, null);
         this.hud.setSpeaker(null, null);
         this.hud.setMeetingStatus('failed');
         console.error(`[Meeting Failed] ${payload.error_message}`);
@@ -274,17 +285,6 @@ export class BloodbankEventSource {
       default:
         console.log(`[Bloodbank] Unhandled event: ${event_type}`);
     }
-  }
-
-  /**
-   * Add a participant to both scene and HUD
-   */
-  private async addParticipant(name: string, role: string): Promise<void> {
-    if (this.participants.has(name)) return;
-
-    this.participants.set(name, { name, role });
-    await this.scene.addParticipant({ name, role });
-    this.hud.addParticipant(name, role);
   }
 
   /**

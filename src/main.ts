@@ -14,6 +14,7 @@
 
 import { BoardroomScene2D } from './scenes/BoardroomScene2D';
 import { HUDController } from './ui/HUDController';
+import { ParticipantManager } from './managers/ParticipantManager';
 import { createEventSource, isDemoMode } from './events/EventSourceFactory';
 import type { EventSourceType } from './events/EventSourceFactory';
 
@@ -33,9 +34,14 @@ if (mode === '2d') {
   document.getElementById('app')!.appendChild(canvas);
 
   const scene = new BoardroomScene2D();
+  const participantManager = new ParticipantManager();
+
   scene.initialize(canvas).then(async () => {
+    // Wire up participant manager to scene
+    scene.setParticipantManager(participantManager);
+
     // Create event source (auto-selects Bloodbank or mock based on config)
-    const eventSource = await createEventSource(scene, hud, { type: sourceType });
+    const eventSource = await createEventSource(scene, hud, participantManager, { type: sourceType });
 
     // Start appropriate source
     if (eventSource.startDemo) {
@@ -56,6 +62,7 @@ if (mode === '2d') {
     (window as any).theboardroom = {
       scene,
       hud,
+      participantManager,
       eventSource,
       mode: '2d',
       isDemo: isDemoMode(),

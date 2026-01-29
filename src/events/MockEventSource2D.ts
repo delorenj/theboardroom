@@ -6,6 +6,7 @@
 
 import { BoardroomScene2D } from '../scenes/BoardroomScene2D';
 import { HUDController } from '../ui/HUDController';
+import { ParticipantManager } from '../managers/ParticipantManager';
 
 interface TheBoardEvent {
   routing_key: string;
@@ -16,6 +17,7 @@ interface TheBoardEvent {
 export class MockEventSource2D {
   private scene: BoardroomScene2D;
   private hud: HUDController;
+  private participantManager: ParticipantManager;
   private demoInterval: ReturnType<typeof setInterval> | null = null;
   private currentRound = 0;
   private participantIndex = 0;
@@ -30,9 +32,10 @@ export class MockEventSource2D {
 
   private readonly DEMO_TOPIC = 'How should we implement the new authentication system?';
 
-  constructor(scene: BoardroomScene2D, hud: HUDController) {
+  constructor(scene: BoardroomScene2D, hud: HUDController, participantManager: ParticipantManager) {
     this.scene = scene;
     this.hud = hud;
+    this.participantManager = participantManager;
   }
 
   /**
