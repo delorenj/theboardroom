@@ -184,11 +184,11 @@ bun run dev  # Opens http://localhost:5173
 
 # 2. Start TheBoard API with Bloodbank
 cd /home/delorenj/code/33GOD/theboard/trunk-main
-THEBOARD_EVENT_EMITTER=rabbitmq RABBIT_URL="amqp://delorenj:REDACTED_CREDENTIAL@localhost:5673/" \
+THEBOARD_EVENT_EMITTER=rabbitmq RABBIT_URL="amqp://user:pass@localhost:5673/" \
   uv run uvicorn theboard.api:app --host 0.0.0.0 --port 8001 --reload
 
 # 3. Trigger test meeting
-RABBIT_URL="amqp://delorenj:REDACTED_CREDENTIAL@localhost:5673/" \
+RABBIT_URL="amqp://user:pass@localhost:5673/" \
   uv run python /tmp/test_meeting_trigger.py
 
 # 4. Execute meeting
